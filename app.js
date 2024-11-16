@@ -1,21 +1,15 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
-var cors = require('cors')
-var indexRouter = require('./routes/index');
+const createError = require('http-errors');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
+const cors = require('cors')
+const indexRouter = require('./routes/index');
+const fs = require("fs");
+const {createServer} = require("node:https");
 
-require('dotenv').config();
 
-var app = express();
-
-// var privateKey = fs.readFileSync('/root/DocumentationApi/certificates/privkey.pem');
-// var certificate = fs.readFileSync('/root/DocumentationApi/certificates/fullchain.pem');
-
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug');
+const app = express();
 
 app.use(cors({
     origin: '*'
@@ -34,16 +28,29 @@ app.use(function(req, res, next) {
 });
 
 // error handler
-// app.use(function(err, req, res, next) {
-//     // set locals, only providing error in development
-//     res.locals.message = err.message;
-//     res.locals.error = req.app.get('env') === 'development' ? err : {};
-//
-//     // render the error page
-//     res.status(err.status || 500);
-//     res.render('error');
-// });
+app.use(function(err, req, res, next) {
+    // set locals, only providing error in development
+    res.locals.message = err.message;
+    res.locals.error = req.app.get('env') === 'development' ? err : {};
 
+    // Send error as JSON instead of rendering
+    res.status(err.status || 500);
+    res.json({
+        message: err.message,
+        error: req.app.get('env') === 'development' ? err : {}
+    });
+});
+// let privateKey = fs.readFileSync('/root/DocumentationApi/certificates/privkey.pem');
+// let certificate = fs.readFileSync('/root/DocumentationApi/certificates/fullchain.pem');
+
+
+const httpsServer = createServer({
+    // key: privateKey,
+    // cert: certificate
+}, app);
+// Start HTTP server
+httpsServer.listen(3001, () => {
+    console.log('HTTPS Server running on port 3000');
+});
 
 module.exports = app;
-
