@@ -40,13 +40,9 @@ app.use(function(err, req, res, next) {
         error: req.app.get('env') === 'development' ? err : {}
     });
 });
-// let privateKey = fs.readFileSync('/root/DocumentationApi/certificates/privkey.pem');
-// let certificate = fs.readFileSync('/root/DocumentationApi/certificates/fullchain.pem');
 
 
 const httpsServer = createServer({
-    // key: privateKey,
-    // cert: certificate
 }, app);
 // Start HTTP server
 httpsServer.listen(3001, () => {
