@@ -29,72 +29,9 @@ async function getMongoClient() {
   }
 }
 
-// Create new Category
-router.post('/category', async (req, res) => {
-  let client;
-  try {
-    // Validate required fields
-    const requiredFields = ['name', 'label'];
-    for (const field of requiredFields) {
-      if (!req.body[field]) {
-        return res.status(400).json({
-          error: `Missing required field: ${field}`
-        });
-      }
-    }
-
-    // Create new technology object
-    const newCategory = {
-      name: req.body.name.toLowerCase(), // Store name in lowercase for consistency
-      label: req.body.label
-    };
-
-    // Connect to MongoDB
-    client = await getMongoClient();
-    const db = client.db(dbName);
-
-    // Check for duplicates using either name or label
-    const existingCategory = await db.collection('documentation_categories')
-        .findOne({
-          $or: [
-            { name: newCategory.name },
-            { label: newCategory.label }
-          ]
-        });
-
-    if (existingCategory) {
-      return res.status(409).json({
-        error: existingCategory.name === newCategory.name
-            ? 'A technology with this name already exists'
-            : 'A technology with this label already exists',
-        existingTechnology: {
-          name: existingCategory.name,
-          label: existingCategory.label
-        }
-      });
-    }
-
-    // Insert the technology if no duplicates found
-    const result = await db.collection('documentation_categories')
-        .insertOne(newCategory);
-
-    res.status(201).json({
-      message: 'Technology created successfully',
-      technologyId: result.insertedId,
-      technology: newCategory
-    });
-
-  } catch (error) {
-    console.error('Error creating technology:', error);
-    res.status(500).json({
-      error: `Internal server error: ${error.message}`
-    });
-  } finally {
-    if (client) {
-      await client.close();
-    }
-  }
-});
+//
+// Add category and subcategories if doesn't already exist
+//
 router.post('/add/category', async (req, res) => {
   let client;
   try {
@@ -152,17 +89,20 @@ router.post('/add/category', async (req, res) => {
   }
 });
 
-// Get all existing categories
-router.get('/allCategories', async (req, res) => {
+//
+// Get all categories with their subcategories
+//
+router.get('/categories', async (req, res) => {
   let client;
   try {
     client = await getMongoClient();
     const db = client.db(dbName);
 
-    const documents = await db.collection('documentation_categories')
+    const categories = await db.collection('categories')
         .find()
         .toArray();
-    res.json(documents);
+
+    res.json(categories);
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({
@@ -174,8 +114,9 @@ router.get('/allCategories', async (req, res) => {
     }
   }
 });
-
+//
 // Create new document
+//
 router.post('/documentation', async (req, res) => {
   let client;
   try {
@@ -189,7 +130,6 @@ router.post('/documentation', async (req, res) => {
       }
     }
 
-    // Create new document object with default values
     const newDoc = {
       title: req.body.title,
       description: req.body.description,
@@ -199,11 +139,9 @@ router.post('/documentation', async (req, res) => {
       status: req.body.status
     };
 
-    // Connect to MongoDB
     client = await getMongoClient();
     const db = client.db(dbName);
 
-    // Insert the document
     const result = await db.collection('documentation')
         .insertOne(newDoc);
 
@@ -225,55 +163,51 @@ router.post('/documentation', async (req, res) => {
   }
 });
 
-// Get documents by multiple categories
+//
+// Get documents by multiple subcategories
+//
 router.get('/category', async (req, res) => {
   let client;
   try {
-    // Get categories from query parameter, fallback to all valid categories if none specified
-    let categories = req.query.categories ? req.query.categories.split(',') : [];
+    client = await getMongoClient();
+    const db = client.db(dbName);
 
-    // Define valid categories
-    const validCategories = ['apache', 'nodejs', 'mongodb', 'mysql',"jenkins",'docker', 'kubernetes', 'gitLab','postgresql','redis', 'python', 'java', 'php','nginx'];
+    // Get all valid subcategories from database
+    const categoriesData = await db.collection('categories').find().toArray();
+    const validSubcategories = categoriesData.reduce((acc, category) => {
+      return [...acc, ...category.subcategories.map(sub => sub.toLowerCase())];
+    }, []);
 
-    // If no categories specified or invalid ones provided, use all valid categories
-    if (categories.length === 0) {
-      categories = validCategories;
+    // Get subcategories from query parameter
+    let subcategories = req.query.categories ? req.query.categories.split(',') : [];
+
+    // If no subcategories specified or invalid ones provided, use all valid subcategories
+    if (subcategories.length === 0) {
+      subcategories = validSubcategories;
     } else {
-      // Filter out any invalid categories
-      categories = categories.filter(cat => validCategories.includes(cat));
+      // Filter out any invalid subcategories
+      subcategories = subcategories.filter(cat => validSubcategories.includes(cat));
 
-      // If all provided categories were invalid, return error
-      if (categories.length === 0) {
+      if (subcategories.length === 0) {
         return res.status(400).json({
-          error: `Invalid categories. Must be one or more of: ${validCategories.join(', ')}`,
-          validCategories: validCategories
+          error: `Invalid categories. Must be one or more of: ${validSubcategories.join(', ')}`,
+          validSubcategories: validSubcategories
         });
       }
     }
 
-    client = await getMongoClient();
-    const db = client.db(dbName);
-
-    // Create an object to store results for each category
-    const results = {};
-
-    // Initialize results object with empty arrays for all requested categories
-    categories.forEach(category => {
-      results[category] = [];
-    });
-
-    // Fetch documents for all requested categories in a single query
     const documents = await db.collection('documentation')
         .find({
-          category: {$in: categories},
+          category: {$in: subcategories},
           status: "published"
         })
         .toArray();
+
     const response = {
       totalDocuments: documents.length,
       results: documents
     };
-    res.json(response)
+    res.json(response);
   } catch (error) {
     console.error('Error fetching documents by categories:', error);
     res.status(500).json({
