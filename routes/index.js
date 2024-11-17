@@ -114,6 +114,7 @@ router.get('/categories', async (req, res) => {
     }
   }
 });
+
 //
 // Create new document
 //
@@ -172,20 +173,16 @@ router.get('/category', async (req, res) => {
     client = await getMongoClient();
     const db = client.db(dbName);
 
-    // Get all valid subcategories from database
     const categoriesData = await db.collection('categories').find().toArray();
     const validSubcategories = categoriesData.reduce((acc, category) => {
       return [...acc, ...category.subcategories.map(sub => sub.toLowerCase())];
     }, []);
 
-    // Get subcategories from query parameter
     let subcategories = req.query.categories ? req.query.categories.split(',') : [];
 
-    // If no subcategories specified or invalid ones provided, use all valid subcategories
     if (subcategories.length === 0) {
       subcategories = validSubcategories;
     } else {
-      // Filter out any invalid subcategories
       subcategories = subcategories.filter(cat => validSubcategories.includes(cat));
 
       if (subcategories.length === 0) {
@@ -210,6 +207,46 @@ router.get('/category', async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error fetching documents by categories:', error);
+    res.status(500).json({
+      error: `Internal server error: ${error.message}`
+    });
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+});
+
+//
+// Get document by ID
+//
+router.get('/documentation/:id', async (req, res) => {
+  let client;
+  try {
+    const documentId = req.params.id;
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(documentId)) {
+      return res.status(400).json({
+        error: 'Invalid document ID format'
+      });
+    }
+
+    client = await getMongoClient();
+    const db = client.db(dbName);
+
+    const document = await db.collection('documentation')
+        .findOne({ _id: new ObjectId(documentId) });
+
+    if (!document) {
+      return res.status(404).json({
+        error: 'Document not found'
+      });
+    }
+
+    res.json(document);
+  } catch (error) {
+    console.error('Error fetching document by ID:', error);
     res.status(500).json({
       error: `Internal server error: ${error.message}`
     });
