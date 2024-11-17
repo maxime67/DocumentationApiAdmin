@@ -246,7 +246,7 @@ router.put('/documentation/:id', async (req, res) => {
     // Remove _id from update data if it exists
     const updateData = { ...req.body };
     delete updateData._id;
-    updateData.category = req.body.subcategories;
+    updateData.category = req.body.subcategories[0].toLowerCase();
 
 
     const result = await db.collection('documentation').updateOne(
