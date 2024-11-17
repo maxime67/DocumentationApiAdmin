@@ -96,6 +96,37 @@ router.post('/category', async (req, res) => {
   }
 });
 
+router.post('/add/category', async (req, res) => {
+  let client;
+  try {
+    const { name, subcategories } = req.body;
+
+    if (!name || !subcategories || !Array.isArray(subcategories)) {
+      return res.status(400).json({ error: 'Invalid category data' });
+    }
+
+    client = await getMongoClient();
+    const db = client.db(dbName);
+
+    await db.collection('categories').updateOne(
+        { name: name },
+        { $set: { name, subcategories } },
+        { upsert: true }
+    );
+
+    res.json({ message: 'Category updated successfully' });
+  } catch (error) {
+    console.error('Error updating categories:', error);
+    res.status(500).json({
+      error: `Internal server error: ${error.message}`
+    });
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+});
+
 // Get all existing categories
 router.get('/allCategories', async (req, res) => {
   let client;
