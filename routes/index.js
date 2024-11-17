@@ -217,6 +217,65 @@ router.get('/category', async (req, res) => {
   }
 });
 
+
+//
+// Update existing document
+//
+router.put('/documentation/:id', async (req, res) => {
+  let client;
+  try {
+    const documentId = req.params.id;
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(documentId)) {
+      return res.status(400).json({
+        error: 'Invalid document ID format'
+      });
+    }
+
+    // Validate request body
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).json({
+        error: 'Request body cannot be empty'
+      });
+    }
+
+    client = await getMongoClient();
+    const db = client.db(dbName);
+
+    // Remove _id from update data if it exists
+    const updateData = { ...req.body };
+    delete updateData._id;
+
+    const result = await db.collection('documentation').updateOne(
+        { _id: new ObjectId(documentId) },
+        { $set: updateData }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        error: 'Document not found'
+      });
+    }
+
+    res.json({
+      message: 'Document updated successfully',
+      modifiedCount: result.modifiedCount
+    });
+
+  } catch (error) {
+    console.error('Error updating document:', error);
+    res.status(500).json({
+      error: `Internal server error: ${error.message}`
+    });
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+});
+
+
 //
 // Get document by ID
 //
