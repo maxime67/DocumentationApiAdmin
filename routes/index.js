@@ -95,7 +95,6 @@ router.post('/category', async (req, res) => {
     }
   }
 });
-
 router.post('/add/category', async (req, res) => {
   let client;
   try {
@@ -107,16 +106,42 @@ router.post('/add/category', async (req, res) => {
 
     client = await getMongoClient();
     const db = client.db(dbName);
+    const categoriesCollection = db.collection('categories');
 
-    await db.collection('categories').updateOne(
-        { name: name },
-        { $set: { name, subcategories } },
-        { upsert: true }
-    );
+    const existingCategory = await categoriesCollection.findOne({ name });
 
-    res.json({ message: 'Category updated successfully' });
+    if (existingCategory) {
+      const updatedSubcategories = [
+        ...new Set([
+          ...existingCategory.subcategories,
+          ...subcategories
+        ])
+      ];
+
+      await categoriesCollection.updateOne(
+          { name },
+          { $set: { subcategories: updatedSubcategories } }
+      );
+
+      res.json({
+        message: 'Category updated successfully',
+        addedSubcategories: subcategories.filter(sub =>
+            !existingCategory.subcategories.includes(sub)
+        )
+      });
+    } else {
+      await categoriesCollection.insertOne({
+        name,
+        subcategories
+      });
+
+      res.json({
+        message: 'Category created successfully',
+        addedSubcategories: subcategories
+      });
+    }
   } catch (error) {
-    console.error('Error updating categories:', error);
+    console.error('Error managing categories:', error);
     res.status(500).json({
       error: `Internal server error: ${error.message}`
     });
