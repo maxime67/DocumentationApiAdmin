@@ -41,11 +41,11 @@ app.use(function(err, req, res, next) {
     });
 });
 
-let privateKey = fs.readFileSync('/root/nodejs-app/certificates/privkey.pem');
-let certificate = fs.readFileSync('/root/nodejs-app/certificates/fullchain.pem');
+// let privateKey = fs.readFileSync('/root/nodejs-app/certificates/privkey.pem');
+// let certificate = fs.readFileSync('/root/nodejs-app/certificates/fullchain.pem');
 
 createServer({
-    key: privateKey,
-    cert: certificate
+    // key: privateKey,
+    // cert: certificate
 }, app).listen(3000);
 module.exports = app;
