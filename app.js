@@ -41,12 +41,11 @@ app.use(function(err, req, res, next) {
     });
 });
 
+let privateKey = fs.readFileSync('/root/nodejs-app/certificates/privkey.pem');
+let certificate = fs.readFileSync('/root/nodejs-app/certificates/fullchain.pem');
 
-const httpsServer = createServer({
-}, app);
-// Start HTTP server
-httpsServer.listen(3001, () => {
-    console.log('HTTPS Server running on port 3000');
-});
-
+createServer({
+    key: privateKey,
+    cert: certificate
+}, app).listen(3000);
 module.exports = app;
